@@ -5,13 +5,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
+
 import sys
 import os
 
-DDIR = ""
-LANGUAGE = ""
-USER = ""
-PASS = ""
+SETTINGS = {"ddir": "", "language": "", "username": "", "password": ""}
 
 
 class Problem:
@@ -34,17 +32,16 @@ def usage():
       {:<32}{}
       {:<32}{}
       {:<32}{}
+      {:<32}{}
         """.format("[L]ist", "List problems in order.",
-               "[D]ownload <number>", "Downloads the problem description and template.",
-               "[S]ubmit <number>", "Attempts to upload the current file for submission. Must be logged in.")
+                   "[I]nfo", "Receives problem description and examples.",
+                   "[D]ownload <number>", "Downloads the problem description and template.",
+                   "[S]ubmit <number>", "Attempts to upload the current file for submission. Must be logged in.")
     )
 
 
 def get_settings():
-    global DDIR
-    global LANGUAGE
-    global USER
-    global PASS
+    global SETTINGS
     accepted_languages = ['c++', 'java', 'python', 'python3', 'c', 'c#', 'javascript', 'ruby', 'swift', 'go', 'scala',
                           'kotlin']
 
@@ -56,102 +53,48 @@ def get_settings():
         with open(file, "r")as settings:
             for line in settings:
                 line = line.strip()
-                if line[0:5:] == "ddir:":
-                    DDIR = line[5::]
-                elif line[0:9:] == "language:":
-                    LANGUAGE = line[9::]
-                elif line[0:5:] == "user:":
-                    USER = line[5::]
-                elif line[0:5:] == "pass:":
-                    PASS = line[5::]
+                if line[0:5:] == "ddir=":
+                    SETTINGS["ddir"] = line[5::].strip()
+                elif line[0:9:] == "language=":
+                    SETTINGS["language"] = line[9::].strip().lower()
+                elif line[0:5:] == "user=":
+                    SETTINGS["username"] = line[5::].strip()
+                elif line[0:5:] == "pass=":
+                    SETTINGS["password"] = line[5::].strip()
                 else:
                     return 0
 
-    if DDIR == "" or LANGUAGE == "":
+    if SETTINGS["ddir"] == "" or SETTINGS["language"] == "":
+        print("Please specify the download directory and language in \"leet.ini\"")
         return 0
-    if not os.path.exists(DDIR):
+    if not os.path.exists(SETTINGS["ddir"]):
+        print("The specified download directory was not found.:\n{}".format(SETTINGS["ddir"]))
         return 0
-    if not (LANGUAGE in accepted_languages):
+    if not (SETTINGS["language"]in accepted_languages):
+        print("Please choose a language from the following:\n{}".format("\n".join(accepted_languages)))
         return 0
 
     return 1
 
 
-def make_settings():
-    global DDIR
-    global LANGUAGE
-    global USER
-    global PASS
-    accepted_languages = ['c++', 'java', 'python', 'python3', 'c', 'c#', 'javascript', 'ruby', 'swift', 'go', 'scala',
-                          'kotlin']
-
+def create_config():
     file = "leet.ini"
-    if not os.path.exists(os.path.abspath(file)):
-        create_config()
-
-    with open(file, "r")as settings:
-        for line in settings:
-            line = line.strip()
-            if line[0:5:] == "ddir:":
-                DDIR = line[5::]
-            elif line[0:9:] == "language:":
-                LANGUAGE = line[9::]
-            elif line[0:5:] == "user:":
-                USER = line[5::]
-            elif line[0:5:] == "pass:":
-                PASS = line[5::]
-            else:
-                return 0
-
-    new_ddir = input("Enter a new download directory or enter to keep it the same. [Required]\n"
-                 "Current: {}\n".format(DDIR))
-    new_lang = input("Enter your preferred language to receive/submit code. [Required]\n"
-                     "Current: {}\n".format(LANGUAGE)).lower()
-    new_user = input("Enter your username to your leetcode account for code submission. [Optional]\n"
-                 "Current: {}\n".format(USER))
-
-
-    new_pass = PASS
-    if new_user != "":
-        new_pass = input("Password:\n")
-
-    if new_ddir == "":
-        new_ddir = DDIR
-    if new_lang == "":
-        new_lang = LANGUAGE
-    if new_user == "":
-        new_user = USER
-
-    if not os.path.exists(new_ddir):
-        print("The given path does not exist. Please correct your download directory.")
-        return 0
-    if not (new_lang in accepted_languages):
-        print("Please choose from the following languages:\n{}".format("\n".join(accepted_languages)))
-        return 0
-
-    create_config(new_ddir, new_lang, new_user, new_pass)
-
-
-def create_config(d="", l="", u="", p=""):
-    file = "leet.ini"
-    if d == "":
-        d = os.getcwd()
     with open(file, "w")as settings:
-        settings.write("ddir:{}\nlanguage:{}\nuser:{}\npass:{}".format(d, l, u, p))
+        settings.write("ddir=\nlanguage=\nuser=\npass=")
 
     return
 
 
 def submit_code():
-    pass
-
+    if not login():
+        return
 
 def download_problem(problem_number):
     url = "https://leetcode.com/problemset/all/?search={}".format(problem_number)
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome()#chrome_options=options)
+    driver = webdriver.Chrome()  # chrome_options=options)
     wait = WebDriverWait(driver, 10)
     driver.get(url)
 
@@ -181,10 +124,10 @@ def download_problem(problem_number):
         print(e)
         return
 
-    global LANGUAGE
+    global SETTINGS
     comment_start = '/*'
     comment_end = "*/"
-    if "python" in LANGUAGE:
+    if "python" in SETTINGS["language"]:
         comment_start = '"""'
         comment_end = comment_start
 
@@ -197,13 +140,12 @@ def download_problem(problem_number):
 
     [d.text.strip() for d in description if "Subscribe" not in d.text and "Example" not in d.text]
 
-
     selected_language = ""
 
-    while selected_language != LANGUAGE:
-        print("again because {}  !=  {}".format(selected_language,LANGUAGE))
+    while selected_language != SETTINGS["language"]:
+        print("again because {}  !=  {}".format(selected_language, SETTINGS["language"]))
         try:
-            dropdown_element= driver.find_element_by_class_name("Select-value-label")
+            dropdown_element = driver.find_element_by_class_name("Select-value-label")
             dropdown_element.click()
 
             language_dropdown = driver.find_element_by_class_name("Select-input")
@@ -218,18 +160,6 @@ def download_problem(problem_number):
         except Exception as e:
             print(e)
 
-
-
-
-
-
-
-
-
-
-
-
-
     try:
         code_mirror = driver.find_element_by_class_name("ReactCodeMirror")
     except Exception as e:
@@ -238,10 +168,10 @@ def download_problem(problem_number):
         return
 
     language_extensions = {"java": "java", "c++": "cpp", "python": "py", "python3": "py", "c": "c", "c#": "cs",
-                           "javascript": "js","ruby": "rb", "swift": "swift", "go": "go", "scala": "scala",
+                           "javascript": "js", "ruby": "rb", "swift": "swift", "go": "go", "scala": "scala",
                            "kotlin": "kt"}
 
-    with open("Leetcode{}.{}".format(problem_number, language_extensions[LANGUAGE]), "w") as file:
+    with open("Leetcode{}.{}".format(problem_number, language_extensions[SETTINGS["language"]]), "w") as file:
         file.write(comment_start + "\n")
 
         for d in filtered_description:
@@ -254,7 +184,6 @@ def download_problem(problem_number):
         for t in code_mirror.text:
             if not t.strip().isdigit():  # Line Numbers
                 file.write(t)
-
 
 
 def list_problems():
@@ -291,6 +220,63 @@ def list_problems():
         print("{:<16}{:<64}{:<16}{:<16}".format(p.problem_id, p.title, p.acceptance, p.difficulty))
 
 
+def get_problem_info(problem_number):
+    url = "https://leetcode.com/problemset/all/?search={}".format(problem_number)
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
+    driver = webdriver.Chrome()  # chrome_options=options)
+    wait = WebDriverWait(driver, 10)
+    driver.get(url)
+
+    try:
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, 'tr')))
+        tablerows = driver.find_elements_by_tag_name("tr")
+        if len(tablerows) > 1:
+            problem_url = tablerows[1].find_element_by_css_selector('a').get_attribute('href')
+
+        else:
+            print("No results found.")
+            return
+
+    except Exception as e:
+        print("No results found.")
+        print(e)
+        return
+
+    example_elem = None
+    try:
+        driver.get(problem_url)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "question-description")))
+        problem_elem = driver.find_element_by_class_name("question-description")
+        description_elem = problem_elem.find_elements_by_tag_name("p")
+        example_elem = problem_elem.find_elements_by_tag_name("pre")
+
+
+    except Exception as e:
+        print("A result was found, but the url was invalid.")
+        print(e)
+        return
+
+    description = "".join([d.text.strip() for d in description_elem])
+
+
+    print("____________________________________________________________________________")
+    print("Problem {}:".format(problem_number))
+    for d in description.split("."):
+        if "example" not in d.lower() and "subscribe" not in d.lower():
+            print("{}.\n".format(d.strip()))
+
+
+    print("\n\n")
+    if example_elem:
+        for i,e in enumerate(example_elem):
+            print("\n\nExample {}:\n{}".format(i, e.text))
+
+
+    print("____________________________________________________________________________")
+
+
 if __name__ == "__main__":
     args = [a.lower() for a in sys.argv[1::]]
     if len(args) == 0 or args[0] in ["help", "usage", "commands"]:
@@ -304,15 +290,18 @@ if __name__ == "__main__":
             else:
                 print("Your user settings could not be read."
                       "If this is your first time using LocalLeet, "
-                      'please make sure all of your required settings have been set using "Leet Settings"')
+                      'please make sure all of the required settings have been set in "leet.ini"')
         else:
-            print("Please specify a problem number to download. ex: leet d 24")
+            print("Please specify a problem number to download. eg: leet d 24")
     elif args[0] in ["submit", "s"]:
         if len(args) > 1:
             if get_settings():
                 submit_code()
         else:
-            print("Please specify the problem number of file name to submit. eg: leet s 24")
+            print("Please specify the problem number or file name to submit. eg: leet s 24")
+    elif args[0] in ["info","information","i"]:
+        if len(args)>1 and args[1].isdigit():
+                get_problem_info(args[1])
+        else:
+            print("Please specify a problem number for its description. eg: leet i 24")
 
-    elif args[0] == "settings":
-        make_settings()
