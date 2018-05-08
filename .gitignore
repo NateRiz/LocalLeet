@@ -1,2 +1,5 @@
 .idea/*
 leet.ini
+__pycache__/*
+Locallleet.egg-info/
+

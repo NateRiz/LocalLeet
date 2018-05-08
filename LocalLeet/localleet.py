@@ -11,6 +11,10 @@ import sys
 import os
 
 SETTINGS = {"ddir": "", "language": "", "username": "", "password": ""}
+file = "leet.ini"
+root = os.path.expanduser("~")
+full_path = os.path.join(root, ".config","localleet", file)
+
 
 
 class Problem:
@@ -43,15 +47,15 @@ def usage():
 
 def get_settings():
     global SETTINGS
+    global full_path
     accepted_languages = ['c++', 'java', 'python', 'python3', 'c', 'c#', 'javascript', 'ruby', 'swift', 'go', 'scala',
                           'kotlin']
 
-    file = "leet.ini"
-    if not os.path.exists(os.path.abspath(file)):
+    if not os.path.exists(full_path):
         create_config()
         return 0
     else:
-        with open(file, "r")as settings:
+        with open(full_path, "r")as settings:
             for line in settings:
                 line = line.strip()
                 if line[0:5:] == "ddir=":
@@ -64,6 +68,7 @@ def get_settings():
                     SETTINGS["password"] = line[5::].strip()
                 else:
                     return 0
+
 
     if SETTINGS["ddir"] == "" or SETTINGS["language"] == "":
         print("Please specify the download directory and language in \"leet.ini\"")
@@ -79,8 +84,11 @@ def get_settings():
 
 
 def create_config():
-    file = "leet.ini"
-    with open(file, "w")as settings:
+    global full_path
+    global root
+    print(root)
+    os.makedirs(os.path.join(root,".config","localleet"))
+    with open(full_path, "w")as settings:
         settings.write("ddir=\nlanguage=\nuser=\npass=")
 
     return
@@ -113,7 +121,8 @@ def get_local_code(problem_number):
                            "javascript": "js", "ruby": "rb", "swift": "swift", "go": "go", "scala": "scala",
                            "kotlin": "kt"}
     try:
-        with open("Leetcode{}.{}".format(problem_number,language_extensions[SETTINGS["language"]]),"r") as file:
+        file = "Leetcode{}.{}".format(problem_number,language_extensions[SETTINGS["language"]])
+        with open(os.path.join(SETTINGS["ddir"],file),"r") as file:
             text = file.read()
         return text
     except FileNotFoundError:
@@ -132,7 +141,7 @@ def submit_code(problem_number):
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome()  # chrome_options=options)
+    driver = webdriver.Chrome(chrome_options=options)
     wait = WebDriverWait(driver, 10)
 
     if not login(driver, wait):
@@ -267,7 +276,7 @@ def download_problem(problem_number):
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome()  # chrome_options=options)
+    driver = webdriver.Chrome(chrome_options=options)
     wait = WebDriverWait(driver, 10)
 
     if not navigate_to_problem_and_language(driver, wait, problem_number):
@@ -308,7 +317,9 @@ def download_problem(problem_number):
                            "javascript": "js", "ruby": "rb", "swift": "swift", "go": "go", "scala": "scala",
                            "kotlin": "kt"}
 
-    with open("Leetcode{}.{}".format(problem_number, language_extensions[SETTINGS["language"]]), "w") as file:
+    file = "Leetcode{}.{}".format(problem_number, language_extensions[SETTINGS["language"]])
+
+    with open(os.path.join(SETTINGS["ddir"],file), "w") as file:
         file.write(comment_start + "\n")
 
         for d in filtered_description:
@@ -362,7 +373,7 @@ def get_problem_info(problem_number):
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome()  # chrome_options=options)
+    driver = webdriver.Chrome(chrome_options=options)
     wait = WebDriverWait(driver, 10)
     driver.get(url)
 
@@ -414,7 +425,9 @@ def get_problem_info(problem_number):
     print("____________________________________________________________________________")
 
 
-if __name__ == "__main__":
+def main():
+    #Entry point#
+    global full_path
     args = [a.lower() for a in sys.argv[1::]]
     if len(args) == 0 or args[0] in ["help", "usage", "commands"]:
         usage()
@@ -425,9 +438,9 @@ if __name__ == "__main__":
             if get_settings():
                 download_problem(args[1])
             else:
-                print("Your user settings could not be read."
+                print("Your user settings could not be read.\n"
                       "If this is your first time using LocalLeet, "
-                      'please make sure all of the required settings have been set in "leet.ini"')
+                      'please make sure all of the required settings have been set in "{}"'.format(full_path))
         else:
             print("Please specify a problem number to download. eg: leet d 24")
     elif args[0] in ["submit", "s"]:
@@ -446,3 +459,6 @@ if __name__ == "__main__":
         else:
             print("Please specify a problem number for its description. eg: leet i 24")
 
+
+if __name__=="__main__":
+    main()
