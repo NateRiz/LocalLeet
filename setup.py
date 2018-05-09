@@ -19,6 +19,6 @@ classifiers = [
         ],
 keywords ="leetcode local algorithm interview selenium terminal",
 packages=setuptools.find_packages(),
-install_requires=["selenium", "pyperclip", "chromedriver_installer"],
+install_requires=["selenium", "chromedriver_installer"],
 entry_points={'console_scripts': ['leet=LocalLeet.localleet:main']}
 )
