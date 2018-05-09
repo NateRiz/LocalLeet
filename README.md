@@ -6,7 +6,7 @@ LocalLeet is a command line interface for retrieval and submission of problems f
  $ pip install Localleet
 ```
 ##### Setup
-Automatically create an leet.ini file in {root}/.config/localleet/leet.ini 
+Automatically create an leet.ini file in ~/.config/localleet/leet.ini 
 ```
 leet d 0
 ```
