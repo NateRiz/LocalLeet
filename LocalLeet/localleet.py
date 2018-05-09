@@ -1,4 +1,3 @@
-from pyperclip import copy
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
@@ -95,6 +94,7 @@ def create_config():
 
 
 def login(driver, wait):
+    print("Logging in...")
     global SETTINGS
     url = "https://leetcode.com/accounts/login/"
     driver.get(url)
@@ -116,6 +116,7 @@ def login(driver, wait):
 
 
 def get_local_code(problem_number):
+    print("Reading local file...")
     global SETTINGS
     language_extensions = {"java": "java", "c++": "cpp", "python": "py", "python3": "py", "c": "c", "c#": "cs",
                            "javascript": "js", "ruby": "rb", "swift": "swift", "go": "go", "scala": "scala",
@@ -123,7 +124,7 @@ def get_local_code(problem_number):
     try:
         file = "Leetcode{}.{}".format(problem_number,language_extensions[SETTINGS["language"]])
         with open(os.path.join(SETTINGS["ddir"],file),"r") as file:
-            text = file.read()
+            text = file.readlines()
         return text
     except FileNotFoundError:
         print("Could not open Leetcode{}.{}".format(problem_number,language_extensions[SETTINGS["language"]]))
@@ -136,11 +137,12 @@ def submit_code(problem_number):
         print("You have not set your username and password in \"leet.ini\"")
         return
 
-    copy(get_local_code(problem_number))
+    text = get_local_code(problem_number)
 
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
+
     driver = webdriver.Chrome(chrome_options=options)
     wait = WebDriverWait(driver, 10)
 
@@ -149,13 +151,21 @@ def submit_code(problem_number):
         return 0
 
     navigate_to_problem_and_language(driver, wait, problem_number)
-
     try:
+        print("Typing code...")
         code_mirror = driver.find_element_by_class_name("editor-base")
         code_mirror.click()
-
         driver.switch_to.active_element.send_keys(Keys.CONTROL+"a")
-        driver.switch_to.active_element.send_keys(Keys.LEFT_SHIFT+Keys.INSERT)
+        driver.switch_to.active_element.send_keys(Keys.DELETE)
+
+        for t in text:
+            driver.switch_to.active_element.send_keys(" ")
+            driver.switch_to.active_element.send_keys(Keys.CONTROL+Keys.BACKSPACE)
+            driver.switch_to.active_element.send_keys(t)
+            driver.switch_to.active_element.send_keys(Keys.ENTER)
+
+        driver.switch_to.active_element.send_keys(Keys.CONTROL+Keys.SHIFT+Keys.END)
+        driver.switch_to.active_element.send_keys(Keys.DELETE)
 
     except Exception as e:
         print(e)
@@ -166,6 +176,7 @@ def submit_code(problem_number):
     while too_soon:
         too_soon = False
         try:
+            print("Submitting...")
             submit_elem = driver.find_element_by_class_name("fa-cloud-upload")
             submit_elem.click()
             wait.until(EC.presence_of_element_located((By.ID,"more-details")))
@@ -189,6 +200,7 @@ def submit_code(problem_number):
 
 
 def parse_details(driver, wait):
+    print("Reading submission details...")
     percentile = ""
     try:
         wait.until(EC.presence_of_element_located((By.ID,"details-summary")))
@@ -220,6 +232,7 @@ def parse_details(driver, wait):
 
 
 def navigate_to_problem_and_language(driver, wait, problem_number):
+    print("Redirecting...")
     global SETTINGS
     url = "https://leetcode.com/problemset/all/?search={}".format(problem_number)
     driver.get(url)
